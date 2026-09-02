@@ -3,7 +3,8 @@
 #include <array>
 #include <memory>
 #include <cstdlib>
-#include <unistd.h>
+#include <fstream>
+#include <filesystem>
 
 struct PipeDeleter {
     void operator()(FILE* fp) const {
@@ -23,49 +24,64 @@ static std::string run_command(const std::string& cmd) {
     while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
         result += buffer.data();
     }
-    while (!result.empty() && (result.back() == '\n' || result.back() == '\r')) {
+    while (!result.empty() && (result.back() == '\n' || result.back() == '\r' || result.back() == ' ')) {
         result.pop_back();
     }
     return result;
 }
 
-static bool binary_exists(const std::string& bin) {
-    std::string check = "command -v " + bin + " >/dev/null 2>&1";
-    return (std::system(check.c_str()) == 0);
+static std::string get_default_from_mimeapps() {
+    const char* home = std::getenv("HOME");
+    if (!home) {
+        return "";
+    }
+
+    std::string path = std::string(home) + "/.config/mimeapps.list";
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        return "";
+    }
+
+    std::string line;
+    while(std::getline(file, line)) {
+        if (line.rfind("x-scheme-handler/http=", 0) == 0 ||
+            line.rfind("x-scheme-handler/https=", 0) == 0 ||
+            line.rfind("text/html=", 0) == 0) {
+            return line;
+        }
+    }
+    return "";
+
 }
 
-static std::string build_kiosk_command(const std::string& url) {
+static std::string get_browser_command() {
+    std::string entry = get_default_from_mimeapps();
+
+    if (entry.empty()) {
+        entry = run_command("/usr/bin/xdg-settings get default-web-browser 2>/dev/null");
+    }
+    /*
+    if (entry.find("librewolf") != std::string::npos) {
+        return "librewolf";
+    }
+    */
     
-    std::string desktop_entry = run_command("xdg-settings get default-web-browser");
-
-    if (desktop_entry.find("librewolf") != std::string::npos) {
-        return "librewolf --kiosk \"" + url + "\" &";
+    if (entry.find("firefox") != std::string::npos) {
+        return "firefox";
     }
-    
-    if (desktop_entry.find("firefox") != std::string::npos) {
-        return "firefox --kiosk \"" + url + "\" &";
+    if (entry.find("google-chrome") != std::string::npos) {
+        return "google-chrome";
     }
-
-    if (desktop_entry.find("google-chrome") != std::string::npos) {
-        return "google-chrome --kiosk --no-first-run \"" + url + "\" &";
+    if (entry.find("brave") != std::string::npos) {
+        return "brave";
     }
-
-    if (desktop_entry.find("brave") != std::string::npos) {
-        return "brave-browser --kiosk --no-first-run \"" + url + "\" &";
+    if (entry.find("chromium") != std::string::npos) {
+        return "chromium";
     }
 
-    if (binary_exists("chromium")) {
-        return "chromium --kiosk --no-first-run \"" + url + "\" &";
-    }
-    if (binary_exists("google-chrome-stable")) {
-        return "google-chrome-stable --kiosk --no-first-run \"" + url + "\" &";
-    }
-    if (binary_exists("firefox")) {
-        return "firefox --kiosk \"" + url + "\" &";
-    }
-
-    return "xdg-open \"" + url + "\" &";
+    return "firefox";
 }
+
 
 int main(int argc, char* argv[]) {
     std::string url = "https://youtube.com";
@@ -73,16 +89,18 @@ int main(int argc, char* argv[]) {
         url = argv[1];
     }
 
-    std::string launch_cmd = build_kiosk_command(url);
+    std::string browser = get_browser_command();
+    std::cout << "Identified browser: " << browser << '\n';
 
-    std::cout << "Launching browser in kiosk mode:\n";
-    std::cout << "  Command: " << launch_cmd << "\n";
-
-    int status = std::system(launch_cmd.c_str());
-    if (status != 0) {
-        std::cerr << "Failed to run command.\n";
+    if (browser.empty()) {
+        std::cerr << "Could not identifty an installed browser \n";
         return 1;
     }
+
+    std::string cmd = browser + " --kiosk \"" + url + "\" &";
+    std::cout << "Running command: " << cmd << "\n";
+    std::system(cmd.c_str());
+    
 
     return 0;
 }
