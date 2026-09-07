@@ -87,7 +87,24 @@ static int select_browser(const std::vector<std::string>& browsers) {
 
 }
 
+static void launch_kiosk(const std::string& browser, const std::string& url) {
+    const char* home = std::getenv("HOME");
+    std::string cmd;
+
+    if (browser == "librewolf" || browser == "firefox") {
+        cmd = browser + " --kiosk " + url + " &";
+    }
+    else {
+        cmd = browser + " --kiosk " + url + " &";
+    }
+
+    std::cout << "Running command: " << cmd << '\n';
+    std::system(cmd.c_str());
+}
+
 int main(int argc, char* argv[]) {
+    std::string url = "https://youtube.com";
+
     std::cout << "Checking browsers installed... \n";
 
     std::vector<std::string> browsers = get_installed_browsers();
@@ -111,7 +128,7 @@ int main(int argc, char* argv[]) {
     std::string browser = browsers[choice];
     std::cout << "Selected " << browser << '\n';
 
-
+    launch_kiosk(browser, url);
 
     return 0;
 }
