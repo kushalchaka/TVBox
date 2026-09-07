@@ -6,3 +6,4 @@ Compile
 
 ### Known Issues
 - If the default browser is open, the program will open a new tab in the existing session with the url instead of in kiosk mode 
+- Does not detect browsers installed via flatpak.
