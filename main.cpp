@@ -4,7 +4,9 @@
 #include <memory>
 #include <cstdlib>
 #include <fstream>
+#include <sys/select.h>
 #include <termios.h>
+#include <unistd.h>
 #include <vector>
 #include <filesystem>
 
@@ -68,6 +70,22 @@ static std::vector<std::string> get_installed_browsers() {
     return installed;
 }
 
+static int select_browser(const std::vector<std::string>& browsers) {
+    std::cout << "\n Select a browser: \n";
+    for (size_t i = 0; i < browsers.size(); i++) {
+        std::cout << "[" << i << "] " << browsers[i] << '\n';
+    }
+
+    int choice = -1;
+    std::cout << "Choice (0-" << browsers.size() - 1 << "): ";
+    std::cin >> choice;
+
+    if (choice >= 0 && choice < browsers.size()){
+        return choice;
+    }
+    return -1;
+
+}
 
 int main(int argc, char* argv[]) {
     std::cout << "Checking browsers installed... \n";
@@ -83,6 +101,17 @@ int main(int argc, char* argv[]) {
     for (size_t i = 0; i < browsers.size(); i++) {
         std::cout << "[" << i << "] " << browsers[i] << '\n';
     }
+
+    int choice = select_browser(browsers);
+    if (choice < 0) {
+        std::cout << "Invalid \n";
+        return 1;
+    } 
+
+    std::string browser = browsers[choice];
+    std::cout << "Selected " << browser << '\n';
+
+
 
     return 0;
 }
