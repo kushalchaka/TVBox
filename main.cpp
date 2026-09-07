@@ -4,6 +4,8 @@
 #include <memory>
 #include <cstdlib>
 #include <fstream>
+#include <termios.h>
+#include <vector>
 #include <filesystem>
 
 struct PipeDeleter {
@@ -54,53 +56,33 @@ static std::string get_default_from_mimeapps() {
 
 }
 
-static std::string get_browser_command() {
-    std::string entry = get_default_from_mimeapps();
+static std::vector<std::string> get_installed_browsers() {
+    std::vector<std::string> candidates = {"librewolf", "firefox", "google-chrome", "brave-browser", "chromium"};
+    std::vector<std::string> installed;
 
-    if (entry.empty()) {
-        entry = run_command("/usr/bin/xdg-settings get default-web-browser 2>/dev/null");
+    for (const auto& b : candidates) {
+        if (!run_command("command -v " + b).empty()) {
+            installed.push_back(b);
+        }
     }
-    /*
-    if (entry.find("librewolf") != std::string::npos) {
-        return "librewolf";
-    }
-    */
-    
-    if (entry.find("firefox") != std::string::npos) {
-        return "firefox";
-    }
-    if (entry.find("google-chrome") != std::string::npos) {
-        return "google-chrome";
-    }
-    if (entry.find("brave") != std::string::npos) {
-        return "brave";
-    }
-    if (entry.find("chromium") != std::string::npos) {
-        return "chromium";
-    }
-
-    return "firefox";
+    return installed;
 }
 
 
 int main(int argc, char* argv[]) {
-    std::string url = "https://youtube.com";
-    if (argc > 1) {
-        url = argv[1];
-    }
+    std::cout << "Checking browsers installed... \n";
 
-    std::string browser = get_browser_command();
-    std::cout << "Identified browser: " << browser << '\n';
+    std::vector<std::string> browsers = get_installed_browsers();
 
-    if (browser.empty()) {
-        std::cerr << "Could not identifty an installed browser \n";
+    if (browsers.empty()) {
+        std::cout << "No browsers found \n";
         return 1;
     }
 
-    std::string cmd = browser + " --kiosk \"" + url + "\" &";
-    std::cout << "Running command: " << cmd << "\n";
-    std::system(cmd.c_str());
-    
+    std::cout << "Found " << browsers.size() << " installed browsers(s): \n";
+    for (size_t i = 0; i < browsers.size(); i++) {
+        std::cout << "[" << i << "] " << browsers[i] << '\n';
+    }
 
     return 0;
 }
